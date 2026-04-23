@@ -2,9 +2,13 @@ from rest_framework import status
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+import stripe
+import os 
 
 from .models import Print, CartItem
 from .serializers import AddToCartSerializer
+
+stripe.api_key = os.getenv('STRIPE_S_KEY')
 
 
 def get_cart_items(request):
@@ -106,3 +110,48 @@ def remove_from_cart(request, item_id):
     item.delete()
     items = get_cart_items(request)
     return Response({'cart': cart_to_json(items)}, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def create_checkout_session(request):
+    items = get_cart_items(request)
+
+    if not items:
+        return Response({'error': 'Cart is empty'}, status=status.HTTP_400_BAD_REQUEST)
+
+    line_items = []
+    for item in items:
+        price = get_price(item.print_item, item.size, item.frame)
+        frame_label = 'No frame' if item.frame == 'none' else f'{item.frame.capitalize()} frame'
+        
+        line_items.append({
+            'price_data': {
+                'currency': 'usd',
+                'product_data': {
+                    'name': f'{item.print_item.name} — {item.size}, {frame_label}',
+                },
+                'unit_amount': price * 100,  # Stripe uses cents
+            },
+            'quantity': item.quantity,
+        })
+
+    session = stripe.checkout.Session.create(
+        payment_method_types=['card'],
+        line_items=line_items,
+        mode='payment',
+        success_url='http://127.0.0.1:5500/success.html',
+        cancel_url='http://127.0.0.1:5500/index.html',
+    )
+
+    return Response({'url': session.url}, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def clear_cart(request):
+    items = get_cart_items(request)
+    items.delete()
+    return Response({'message': 'Cart cleared'}, status=status.HTTP_200_OK)
