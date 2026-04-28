@@ -1,12 +1,12 @@
 import random
 from datetime import timedelta
 
-from django.contrib.auth import login
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from cart.models import CartItem
 
 
 from .models import User, LoginCode
@@ -59,9 +59,58 @@ def verify_code(request):
     login_code.save()
 
     user, created = User.objects.get_or_create(email=email)
-    login(request, user)
+
+    # Migrate any guest cart items to this user
+    session_key = request.session.session_key
+    if session_key:
+        CartItem.objects.filter(session_key=session_key).update(
+            user=user, session_key=None
+        )
+
+    request.session['user_id'] = user.id
+    request.session['user_email'] = user.email
+    request.session.save()
 
     return Response({
         'message': 'Login successful',
         'user': {'email': user.email}
     }, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def check_auth(request):
+    user_email = request.session.get('user_email')
+    if user_email:
+        return Response({
+            'authenticated': True,
+            'email': user_email
+        }, status=status.HTTP_200_OK)
+    return Response({'authenticated': False}, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def logout_view(request):
+    request.session.flush()
+    return Response({'message': 'Logged out'}, status=status.HTTP_200_OK)
+
+
+@api_view(['DELETE'])
+@authentication_classes([])
+@permission_classes([AllowAny])
+def delete_account(request):
+    user_id = request.session.get('user_id')
+    if not user_id:
+        return Response({'error': 'Not logged in'}, status=status.HTTP_401_UNAUTHORIZED)
+    
+    from .models import User
+    try:
+        user = User.objects.get(id=user_id)
+        user.delete()
+    except User.DoesNotExist:
+        pass
+    
+    request.session.flush()
+    return Response({'message': 'Account deleted'}, status=status.HTTP_200_OK)

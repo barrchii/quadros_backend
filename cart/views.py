@@ -12,8 +12,9 @@ stripe.api_key = os.getenv('STRIPE_S_KEY')
 
 
 def get_cart_items(request):
-    if request.user.is_authenticated:
-        return CartItem.objects.filter(user=request.user)
+    user_id = request.session.get('user_id')
+    if user_id:
+        return CartItem.objects.filter(user_id=user_id)
     
     session_key = request.session.session_key
     if not session_key:
@@ -62,9 +63,11 @@ def add_to_cart(request):
     if not request.session.session_key:
         request.session.create()
 
-    if request.user.is_authenticated:
+    user_id = request.session.get('user_id')
+
+    if user_id:
         cart_item, created = CartItem.objects.get_or_create(
-            user=request.user,
+            user_id=user_id,
             print_item=print_item,
             size=size,
             frame=frame,
@@ -99,9 +102,10 @@ def get_cart(request):
 @authentication_classes([])
 @permission_classes([AllowAny])
 def remove_from_cart(request, item_id):
+    user_id = request.session.get('user_id')
     try:
-        if request.user.is_authenticated:
-            item = CartItem.objects.get(id=item_id, user=request.user)
+        if user_id:
+            item = CartItem.objects.get(id=item_id, user_id=user_id)
         else:
             item = CartItem.objects.get(id=item_id, session_key=request.session.session_key)
     except CartItem.DoesNotExist:
@@ -141,6 +145,9 @@ def create_checkout_session(request):
         payment_method_types=['card'],
         line_items=line_items,
         mode='payment',
+        shipping_address_collection={
+            'allowed_countries': ['US', 'MX', 'CA'],
+        },
         success_url='http://127.0.0.1:5500/success.html',
         cancel_url='http://127.0.0.1:5500/index.html',
     )
