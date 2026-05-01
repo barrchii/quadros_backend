@@ -31,7 +31,13 @@ def get_price(print_item, size, frame):
 
 def cart_to_json(items):
     result = []
+    frame_suffixes = {
+        'black': 'BlackFrame',
+        'wood': 'WoodFrame',
+        'none': 'NoFrame',
+    }
     for item in items:
+        suffix = frame_suffixes[item.frame]
         result.append({
             'id': item.id,
             'name': item.print_item.name,
@@ -40,6 +46,7 @@ def cart_to_json(items):
             'frame': item.frame,
             'quantity': item.quantity,
             'price': get_price(item.print_item, item.size, item.frame),
+            'image': f'cart-thumbnails/{item.print_item.slug}-{suffix}.png',
         })
     return result
 
