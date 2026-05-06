@@ -155,8 +155,8 @@ def create_checkout_session(request):
         shipping_address_collection={
             'allowed_countries': ['US', 'MX', 'CA'],
         },
-        success_url='http://127.0.0.1:5500/success.html',
-        cancel_url='http://127.0.0.1:5500/index.html',
+        success_url='http://127.0.0.1:8000/success.html',
+        cancel_url='http://127.0.0.1:8000/index.html',
     )
 
     return Response({'url': session.url}, status=status.HTTP_200_OK)
