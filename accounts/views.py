@@ -25,7 +25,6 @@ def send_code(request):
 
     LoginCode.objects.create(email=email, code=code)
 
-    # TO DO: send email via AWS SES — for now just print to console
     print(f'\n=== LOGIN CODE for {email}: {code} ===\n')
 
     return Response({'message': 'Code sent'}, status=status.HTTP_200_OK)
