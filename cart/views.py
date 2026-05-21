@@ -148,6 +148,8 @@ def create_checkout_session(request):
             'quantity': item.quantity,
         })
 
+    base_url = request.META.get('HTTP_ORIGIN', 'http://127.0.0.1:8000')
+
     session = stripe.checkout.Session.create(
         payment_method_types=['card'],
         line_items=line_items,
@@ -155,8 +157,8 @@ def create_checkout_session(request):
         shipping_address_collection={
             'allowed_countries': ['US', 'MX', 'CA'],
         },
-        success_url='http://127.0.0.1:8000/success.html',
-        cancel_url='http://127.0.0.1:8000/index.html',
+        success_url=f'{base_url}/success.html',
+        cancel_url=f'{base_url}/index.html',
     )
 
     return Response({'url': session.url}, status=status.HTTP_200_OK)

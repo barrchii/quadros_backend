@@ -1,5 +1,6 @@
 import random
 from datetime import timedelta
+import boto3
 
 from django.utils import timezone
 from rest_framework import status
@@ -25,7 +26,18 @@ def send_code(request):
 
     LoginCode.objects.create(email=email, code=code)
 
-    print(f'\n=== LOGIN CODE for {email}: {code} ===\n')
+    ses = boto3.client('ses', region_name='us-west-2')
+    ses.send_email(
+        Source='login@quadrosgallery.com',
+        Destination={'ToAddresses': [email]},
+        Message={
+            'Subject': {'Data': 'Your Quadros login code'},
+            'Body': {
+                'Text': {'Data': f'Your login code is: {code}\n\nThis code expires in 10 minutes.\n\nquadrosgallery.com'}
+            }
+        },
+        ConfigurationSetName='quadros-transactional'
+    )
 
     return Response({'message': 'Code sent'}, status=status.HTTP_200_OK)
 
